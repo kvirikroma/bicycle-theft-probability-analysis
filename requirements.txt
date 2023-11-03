@@ -1,0 +1,14 @@
+Flask==2.2.5
+Flask-API==3.0.post1
+gunicorn==20.1.0
+flask-restx==1.1.0
+Flask-SQLAlchemy==3.0.3
+psycopg2-binary==2.9.6
+tzlocal==2.1  # written here with version to prevent it from upgrading
+SQLAlchemy==1.4.48
+Werkzeug==2.3.3
+six==1.16.0
+jsonschema==4.17.3
+gevent==22.10.2
+pyOpenSSL==23.1.1
+jinja2==3.0.3  # written here with version to prevent it from upgrading
