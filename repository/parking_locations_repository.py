@@ -1,12 +1,9 @@
-from typing import Generator, Final
+from typing import Generator
 from random import uniform, choice, randint
 
 from geopy import distance
 
-from . import ParkingLocation, Location
-
-
-EPSILON: Final = 0.000001
+from . import ParkingLocation, Location, EPSILON
 
 
 def parking_locations_source(
@@ -15,7 +12,7 @@ def parking_locations_source(
 ) -> Generator[ParkingLocation, None, None]:
     def get_random_locations(number: int) -> Generator[ParkingLocation, None, None]:
         for _ in range(number):
-            theft_and_recovery = choice(((True, False), (True, True), (False, None)))
+            theft_and_recovery = choice(((True, False), (True, True)) + ((False, None), ) * 5)
             yield ParkingLocation(
                 round(uniform(lat_min, lat_max), 7),
                 round(uniform(lon_min, lon_max), 7),
@@ -23,7 +20,7 @@ def parking_locations_source(
                 *theft_and_recovery
             )
 
-    return get_random_locations(20)
+    return get_random_locations(200)
 
 
 def stream_parking_locations_nearby(

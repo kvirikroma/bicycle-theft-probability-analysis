@@ -1,4 +1,9 @@
+from typing import Final
+
 from geopy.distance import distance
+
+
+EPSILON: Final = 0.000001
 
 
 class Location:
@@ -28,12 +33,13 @@ class ParkingLocation(Location):
     ):
         """parking_time is in seconds"""
         super().__init__(latitude, longitude)
-        if stolen and (recovered is not None):
+        if not stolen and (recovered is not None):
             raise ValueError("The 'recovered' value must be None if the 'stolen' value is False")
         self.stolen = stolen
         self.recovered = recovered
         self.parking_time = parking_time
 
     def __str__(self):
-        return (f"{type(self).__name__}({', '.join(str(i) for i in self.coordinates)}, stolen={self.stolen}"
+        return (f"{type(self).__name__}({', '.join(str(i) for i in self.coordinates)}"
+                f", parking_time={self.parking_time}, stolen={self.stolen}"
                 f"{f', recovered={self.recovered}' if self.recovered is not None else ''})")
