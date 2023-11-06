@@ -2,6 +2,9 @@ from typing import Callable
 from math import nan, isnan
 from heapq import heappush, heapreplace
 
+from statsmodels.regression.linear_model import WLS
+from statsmodels.api import add_constant
+
 from repository import parking_locations_repository, Location, ParkingLocation, EPSILON
 
 
@@ -37,10 +40,10 @@ def _get_error(value: float, biased_value: float):
 
 def estimate_theft_probability(
         location: Location, k_locations_to_test: int = 5,
-        power_of_distance: float = 2, get_probability_function: bool = False
-) -> tuple[float, float, int, float | None, Callable[[int], float] | None]:
+        power_of_distance: float = 1.432, get_probability_function: bool = False
+) -> tuple[float, float, int, float | None, Callable[[int | None], float | tuple[float, float]] | None]:
     """
-    The allowed values for power_of_distance are 1.0 and above.
+    The allowed values for power_of_distance are between 1.0 and 32.0. Recommended values are between 1.0 and 2.0.
     The higher this value, the more significant becomes the distance to the compared dot.
     Parameter trusted_distance represents the size of interval (in meters), at least 1 point should be in.
     Returned value consists of these values:
@@ -53,8 +56,8 @@ def estimate_theft_probability(
         depending on the parking time. None if the get_probability_function is False
     The function returns (nan, nan, None, None, None), if there are no dots around the location.
     """
-    if power_of_distance < 1.0:
-        raise ValueError("The allowed values for power_of_distance are 1.0 and above")
+    if power_of_distance < 1.0 or power_of_distance > 32.0:
+        raise ValueError("The allowed values for power_of_distance are between 1.0 and 32.0")
     if k_locations_to_test < 0:
         raise ValueError("The k_locations_to_test parameter can't be negative")
     sum_of_importance = 0.0
@@ -63,11 +66,10 @@ def estimate_theft_probability(
     dots_count = 0  # just a counter
     k_nearest_locations: list[DotAndItsImportance] = []
     all_dots_with_importance = []
-    max_locations_distance = 1000  # _get_max_distance(power_of_distance)  # todo change back
+    max_locations_distance = _get_max_distance(power_of_distance)
     for dot in parking_locations_repository.stream_parking_locations_nearby(
             location, max_locations_distance, exclude_center=False
     ):
-        # print(dot)  # todo remove
         dots_count += 1
         dot_importance = 1 / ((dot - location) ** power_of_distance)
         sum_of_importance += dot_importance
@@ -95,5 +97,20 @@ def estimate_theft_probability(
         k_nearest_test_result = _get_error(k_nearest_avg_theft_probability, k_avg_thefts)
     else:
         k_nearest_test_result = None
-    # todo implement the 5th value
-    return probability_of_theft, probability_of_recovery, dots_count, k_nearest_test_result, None
+    probability_function = None
+    if get_probability_function:
+        weights = [i.importance for i in all_dots_with_importance]
+        y_values = [int(i.dot.stolen) for i in all_dots_with_importance]
+        x_values = [int(i.dot.parking_time) for i in all_dots_with_importance]
+        probability_func_parameters = WLS(y_values, add_constant(x_values), weights=weights).fit().params
+        if probability_func_parameters[1] >= 0.0:
+            def probability_function(time: int | None = None):
+                if time is None:
+                    return probability_func_parameters[1], probability_func_parameters[0]
+                raw_prediction = probability_func_parameters[1] * time + probability_func_parameters[0]
+                if raw_prediction < 0.0 or time <= 0 or probability_func_parameters[1] < 0:
+                    return 0.0
+                if raw_prediction > 1.0:
+                    return 1.0
+                return raw_prediction
+    return probability_of_theft, probability_of_recovery, dots_count, k_nearest_test_result, probability_function
