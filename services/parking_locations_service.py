@@ -115,7 +115,7 @@ def _get_error(value: float, biased_value: float):
 
 
 def estimate_theft_probability(
-        location: Location, power_of_distance: float = 1.2,
+        location: Location, power_of_distance: float = 1.25,
         get_probability_function: bool = False, get_all_dots: bool = False
 ) -> tuple[TheftProbabilityPrediction, list[DotAndItsImportance] | None]:
     """

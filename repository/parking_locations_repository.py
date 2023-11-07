@@ -20,23 +20,28 @@ def parking_locations_source(
                 *theft_and_recovery
             )
 
-    return get_random_locations(20)
+    return get_random_locations(200)
+
+
+def get_map_corners(center: Location, radius: int) -> tuple[float, float, float, float]:
+    """
+    :param center: center of the map
+    :param radius: this radius has to be displayed on the map
+    :return: the borders of the map displaying the given radius: lat_min, lat_max, lon_min, lon_max
+    """
+    return (
+        distance.distance(meters=radius).destination(center.coordinates, bearing=180).latitude,
+        distance.distance(meters=radius).destination(center.coordinates, bearing=0).latitude,
+        distance.distance(meters=radius).destination(center.coordinates, bearing=270).longitude,
+        distance.distance(meters=radius).destination(center.coordinates, bearing=90).longitude
+    )
 
 
 def stream_parking_locations_nearby(
         center: Location, radius: int, exclude_center: bool = False
 ) -> Generator[ParkingLocation, None, None]:
     """Radius is in meters"""
-    lat_top = distance.distance(meters=radius).destination(center.coordinates, bearing=0).latitude
-    lat_bottom = distance.distance(meters=radius).destination(center.coordinates, bearing=180).latitude
-    lon_left = distance.distance(meters=radius).destination(center.coordinates, bearing=270).longitude
-    lon_right = distance.distance(meters=radius).destination(center.coordinates, bearing=90).longitude
-    for location in parking_locations_source(
-            lat_min=min(lat_bottom, lat_top),
-            lat_max=max(lat_bottom, lat_top),
-            lon_min=min(lon_right, lon_left),
-            lon_max=max(lon_right, lon_left)
-    ):
+    for location in parking_locations_source(*get_map_corners(center, radius)):
         if (center - location) <= radius:
             if not exclude_center or (center - location) > EPSILON:
                 yield location
