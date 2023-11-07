@@ -2,11 +2,13 @@ from typing import Final
 
 from geopy.distance import distance
 
+from utils import ReprMixin
+
 
 EPSILON: Final = 0.000001
 
 
-class Location:
+class Location(ReprMixin):
     def __init__(self, latitude: float, longitude: float):
         self.latitude = latitude
         self.longitude = longitude
@@ -21,9 +23,6 @@ class Location:
 
     def __str__(self):
         return f"{type(self).__name__}({','.join(str(i) for i in self.coordinates)})"
-
-    def __repr__(self):
-        return str(self)
 
 
 class ParkingLocation(Location):

@@ -20,7 +20,7 @@ def parking_locations_source(
                 *theft_and_recovery
             )
 
-    return get_random_locations(200)
+    return get_random_locations(20)
 
 
 def stream_parking_locations_nearby(

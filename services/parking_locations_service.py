@@ -4,9 +4,10 @@ from statsmodels.regression.linear_model import WLS
 from statsmodels.api import add_constant
 
 from repository import parking_locations_repository, Location, ParkingLocation, EPSILON
+from utils import ReprMixin
 
 
-class DotAndItsImportance:
+class DotAndItsImportance(ReprMixin):
     def __init__(self, dot: ParkingLocation, importance: float):
         self.dot = dot
         self.importance = importance
@@ -26,6 +27,9 @@ class DotAndItsImportance:
     def __le__(self, other: 'DotAndItsImportance'):
         return self.importance <= other.importance
 
+    def __str__(self):
+        return f"{type(self).__name__}(dot={self.dot}, importance={self.importance})"
+
 
 class LinearRegressionParams:
     """The function is meant to me a*x + b"""
@@ -37,13 +41,13 @@ class LinearRegressionParams:
         return self.a * x + self.b
 
     def __str__(self):
-        return f"{type(self).__name__}(a={self.a}, b={self.b}"
+        return f"{type(self).__name__}(a={self.a}, b={self.b})"
 
     def __repr__(self):
         return str(self)
 
 
-class TheftProbabilityPrediction:
+class TheftProbabilityPrediction(ReprMixin):
     def __init__(
             self, location: Location, theft_probability: float, recovery_probability: float,
             used_dots: int, regression_params: LinearRegressionParams | None
@@ -74,9 +78,6 @@ class TheftProbabilityPrediction:
     def __str__(self):
         return (f"{type(self).__name__}(location={self.location}, theft_probability={self.theft_probability}"
                 f", used_dots={self.used_dots}, regression_params={self.regression_params})")
-
-    def __repr__(self):
-        return str(self)
 
 
 class UserRiskTendency:
@@ -114,22 +115,24 @@ def _get_error(value: float, biased_value: float):
 
 
 def estimate_theft_probability(
-        location: Location, k_locations_to_test: int = 5,
-        power_of_distance: float = 1.432, get_probability_function: bool = False
-) -> TheftProbabilityPrediction:
+        location: Location, power_of_distance: float = 1.2,
+        get_probability_function: bool = False, get_all_dots: bool = False
+) -> tuple[TheftProbabilityPrediction, list[DotAndItsImportance] | None]:
     """
+    Calculate the approximate probability of the bicycle theft at the given location,
+        basing on the data about bicycle thefts in this area.
     :param location: the location to perform the test on
-    :param k_locations_to_test: k nearest locations that will also be tested. The results will determine the accuracy
     :param power_of_distance: The higher this value, the more significant becomes the distance to the compared dot.
-    The allowed values for this parameter are between 1.0 and 32.0. Recommended values are between 1.0 and 2.0.
-    :param get_probability_function:
-    :return: a TheftProbabilityPrediction() object.
-    If there are no dots around the location, TheftProbabilityPrediction(nan, nan, None, None, None) will be returned
+        The allowed values for this parameter are between 1.0 and 32.0. Recommended values are between 1.0 and 2.0.
+    :param get_probability_function: if set to True, the probability function parameters will be calculated.
+    :param get_all_dots: Return list of all locations along with the TheftProbabilityPrediction() object.
+    :return: a TheftProbabilityPrediction() object and, optionally, all the dots, used for the prediction,
+        along with their weights. If there are no dots around the location,
+        (TheftProbabilityPrediction(nan, nan, None, None, None), None) will be returned.
+    If the get_probability_function and the get_all_dots parameters are both false, the function will use O(1) memory.
     """
     if power_of_distance < 1.0 or power_of_distance > 32.0:
         raise ValueError("The allowed values for power_of_distance are between 1.0 and 32.0")
-    if k_locations_to_test < 0:
-        raise ValueError("The k_locations_to_test parameter can't be negative")
     sum_of_importance = 0.0
     sum_of_stolen_forever = 0.0  # also about importance
     sum_of_stolen_and_recovered = 0.0  # also about importance
@@ -147,9 +150,10 @@ def estimate_theft_probability(
         elif dot.stolen:
             sum_of_stolen_forever += dot_importance
         dot_and_importance = DotAndItsImportance(dot, dot_importance)
-        all_dots_with_importance.append(dot_and_importance)
+        if get_probability_function or get_all_dots:
+            all_dots_with_importance.append(dot_and_importance)
     if dots_count == 0:
-        return TheftProbabilityPrediction(location, nan, nan, 0, None)
+        return TheftProbabilityPrediction(location, nan, nan, 0, None), None
     probability_of_theft = (sum_of_stolen_forever + sum_of_stolen_and_recovered) / sum_of_importance
     probability_of_recovery = sum_of_stolen_and_recovered / (sum_of_stolen_forever + sum_of_stolen_and_recovered)
     regression_params = None
@@ -162,7 +166,7 @@ def estimate_theft_probability(
             regression_params = LinearRegressionParams(probability_func_parameters[1], probability_func_parameters[0])
     return TheftProbabilityPrediction(
         location, probability_of_theft, probability_of_recovery, dots_count, regression_params
-    )
+    ), (all_dots_with_importance if get_all_dots else None)
 
 
 def get_user_risk_tendency(
