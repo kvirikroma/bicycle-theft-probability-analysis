@@ -1,5 +1,4 @@
 from math import nan, isnan
-from heapq import heappush, heapreplace
 
 from statsmodels.regression.linear_model import WLS
 from statsmodels.api import add_constant
@@ -47,14 +46,12 @@ class LinearRegressionParams:
 class TheftProbabilityPrediction:
     def __init__(
             self, location: Location, theft_probability: float, recovery_probability: float,
-            used_dots: int, accuracy: float | None, regression_params: LinearRegressionParams | None
+            used_dots: int, regression_params: LinearRegressionParams | None
     ):
         """
         :param theft_probability: the probability of bike theft in the given location
         :param recovery_probability: the probability of bike recovery in case of theft
         :param used_dots: the number of dots used for this prediction
-        :param accuracy: theoretical accuracy (between 0 and 1) of the prediction,
-            based on the independent test of K nearest locations. None if k_locations_to_test is zero
         :param regression_params: a linear function that generates a theft probability  in the given location,
             depending on the parking time. None if the get_probability_function is False
         """
@@ -62,7 +59,6 @@ class TheftProbabilityPrediction:
         self.theft_probability = theft_probability
         self.recovery_probability = recovery_probability
         self.used_dots = used_dots
-        self.accuracy = accuracy
         self.regression_params = regression_params
 
     def probability_function(self, time: int) -> float | None:
@@ -77,7 +73,7 @@ class TheftProbabilityPrediction:
 
     def __str__(self):
         return (f"{type(self).__name__}(location={self.location}, theft_probability={self.theft_probability}"
-                f", used_dots={self.used_dots}, accuracy={self.accuracy}, regression_params={self.regression_params})")
+                f", used_dots={self.used_dots}, regression_params={self.regression_params})")
 
     def __repr__(self):
         return str(self)
@@ -85,15 +81,27 @@ class TheftProbabilityPrediction:
 
 class UserRiskTendency:
     def __init__(
-            self, weighted_avg_theft_probability_prediction: float, avg_theft_probability: float,
-            avg_recovery_probability_prediction: float, avg_recovery_probability: float,
-            avg_parking_time_theft_probability_prediction: float
+            self, avg_theft_probability_prediction: float | None, avg_theft_probability: float | None,
+            avg_recovery_probability_prediction: float | None, avg_recovery_probability: float | None,
+            avg_parking_time_theft_probability_prediction: float | None, avg_parking_time: float | None
     ):
-        self.weighted_avg_theft_probability_prediction = weighted_avg_theft_probability_prediction
+        self.avg_theft_probability_prediction = avg_theft_probability_prediction
         self.avg_theft_probability = avg_theft_probability
         self.avg_recovery_probability_prediction = avg_recovery_probability_prediction
         self.avg_recovery_probability = avg_recovery_probability
         self.avg_parking_time_theft_probability_prediction = avg_parking_time_theft_probability_prediction
+        self.avg_parking_time = avg_parking_time
+
+
+class PredictionAccuracy:
+    def __init__(
+            self, theft_probability_prediction_accuracy: float | None,
+            recovery_probability_prediction_accuracy: float | None,
+            parking_time_theft_probability_prediction_accuracy: float | None
+    ):
+        self.theft_probability_prediction_accuracy = theft_probability_prediction_accuracy
+        self.recovery_probability_prediction_accuracy = recovery_probability_prediction_accuracy
+        self.parking_time_theft_probability_prediction_accuracy = parking_time_theft_probability_prediction_accuracy
 
 
 def _get_max_distance(power_of_distance):
@@ -126,7 +134,6 @@ def estimate_theft_probability(
     sum_of_stolen_forever = 0.0  # also about importance
     sum_of_stolen_and_recovered = 0.0  # also about importance
     dots_count = 0  # just a counter
-    k_nearest_locations: list[DotAndItsImportance] = []
     all_dots_with_importance = []
     max_locations_distance = _get_max_distance(power_of_distance)
     for dot in parking_locations_repository.stream_parking_locations_nearby(
@@ -140,25 +147,11 @@ def estimate_theft_probability(
         elif dot.stolen:
             sum_of_stolen_forever += dot_importance
         dot_and_importance = DotAndItsImportance(dot, dot_importance)
-        if len(k_nearest_locations) < k_locations_to_test:
-            heappush(k_nearest_locations, dot_and_importance)
-        elif (k_locations_to_test > 0) and (k_nearest_locations[0].importance < dot_importance):
-            heapreplace(k_nearest_locations, dot_and_importance)
         all_dots_with_importance.append(dot_and_importance)
     if dots_count == 0:
-        return TheftProbabilityPrediction(location, nan, nan, 0, None, None)
+        return TheftProbabilityPrediction(location, nan, nan, 0, None)
     probability_of_theft = (sum_of_stolen_forever + sum_of_stolen_and_recovered) / sum_of_importance
     probability_of_recovery = sum_of_stolen_and_recovered / (sum_of_stolen_forever + sum_of_stolen_and_recovered)
-    test_results = [estimate_theft_probability(
-        loc.dot, k_locations_to_test=0, power_of_distance=power_of_distance, get_probability_function=False
-    ) for loc in k_nearest_locations]
-    test_results = [i.theft_probability for i in test_results if not isnan(i.theft_probability)]
-    if len(test_results) > 0:
-        k_nearest_avg_theft_probability = sum(test_results) / len(test_results)
-        k_avg_thefts = sum(i.dot.stolen for i in k_nearest_locations) / len(k_nearest_locations)
-        k_nearest_test_result = _get_error(k_nearest_avg_theft_probability, k_avg_thefts)
-    else:
-        k_nearest_test_result = None
     regression_params = None
     if get_probability_function:
         weights = [i.importance for i in all_dots_with_importance]
@@ -168,11 +161,86 @@ def estimate_theft_probability(
         if probability_func_parameters[1] >= 0.0:
             regression_params = LinearRegressionParams(probability_func_parameters[1], probability_func_parameters[0])
     return TheftProbabilityPrediction(
-        location, probability_of_theft, probability_of_recovery, dots_count, k_nearest_test_result, regression_params
+        location, probability_of_theft, probability_of_recovery, dots_count, regression_params
     )
 
 
 def get_user_risk_tendency(
-        parking_locations_with_predictions: list[tuple[ParkingLocation, TheftProbabilityPrediction]]
+        locations_with_predictions: list[tuple[ParkingLocation, TheftProbabilityPrediction]]
 ) -> UserRiskTendency:
-    pass
+    theft_probability_data = [
+        prediction.theft_probability for location, prediction in locations_with_predictions
+        if not isnan(prediction.theft_probability)
+    ]
+    recovery_probability_data = [
+        prediction.recovery_probability for location, prediction in locations_with_predictions
+        if not isnan(prediction.recovery_probability)
+    ]
+    recovery_data = [
+        location.recovered for location, prediction in locations_with_predictions if location.recovered is not None
+    ]
+    parking_time_theft_data = [
+        prediction.probability_function(location.parking_time)
+        for location, prediction in locations_with_predictions
+        if prediction.regression_params is not None
+    ]
+    return UserRiskTendency(
+        avg_theft_probability_prediction=(
+                sum(theft_probability_data) / len(theft_probability_data)
+        ) if theft_probability_data else None,
+        avg_theft_probability=(
+                sum(i[0].stolen for i in locations_with_predictions) / len(locations_with_predictions)
+        ) if locations_with_predictions else None,
+        avg_recovery_probability_prediction=(
+                sum(recovery_probability_data) / len(recovery_probability_data)
+        ) if recovery_probability_data else None,
+        avg_recovery_probability=(
+                sum(recovery_data) / len(recovery_data)
+        ) if recovery_data else None,
+        avg_parking_time_theft_probability_prediction=(
+                sum(parking_time_theft_data) / len(parking_time_theft_data)
+        ) if parking_time_theft_data else None,
+        avg_parking_time=(
+                sum(i[0].parking_time for i in locations_with_predictions) / len(locations_with_predictions)
+        ) if locations_with_predictions else None
+    )
+
+
+def get_prediction_accuracy(
+        locations_with_predictions: list[tuple[ParkingLocation, TheftProbabilityPrediction]]
+) -> PredictionAccuracy:
+    theft_data = [
+        (location.stolen, prediction.theft_probability)
+        for location, prediction in locations_with_predictions
+        if not isnan(prediction.theft_probability)
+    ]
+    recovery_data = [
+        (location.recovered, prediction.recovery_probability)
+        for location, prediction in locations_with_predictions
+        if not isnan(prediction.recovery_probability) and location.recovered is not None
+    ]
+    parking_time_theft_data = [
+        (location.stolen, prediction.probability_function(location.parking_time))
+        for location, prediction in locations_with_predictions
+        if prediction.regression_params is not None
+    ]
+    avg_theft_accuracy = None
+    avg_recovery_accuracy = None
+    avg_parking_time_theft_accuracy = None
+    if theft_data:
+        avg_theft_accuracy = 1.0 - sum(
+            abs(stolen - probability) for stolen, probability in theft_data
+        ) / len(theft_data)
+    if recovery_data:
+        avg_recovery_accuracy = 1.0 - sum(
+            abs(recovered - probability) for recovered, probability in recovery_data
+        ) / len(recovery_data)
+    if parking_time_theft_data:
+        avg_parking_time_theft_accuracy = 1.0 - sum(
+            abs(stolen - probability) for stolen, probability in parking_time_theft_data
+        ) / len(parking_time_theft_data)
+    return PredictionAccuracy(
+        theft_probability_prediction_accuracy=avg_theft_accuracy,
+        recovery_probability_prediction_accuracy=avg_recovery_accuracy,
+        parking_time_theft_probability_prediction_accuracy=avg_parking_time_theft_accuracy
+    )
