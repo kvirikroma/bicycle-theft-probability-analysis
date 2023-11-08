@@ -1,3 +1,4 @@
+import csv
 from typing import Generator
 from random import uniform, choice, randint
 
@@ -6,21 +7,48 @@ from geopy import distance
 from . import ParkingLocation, Location, EPSILON
 
 
-def parking_locations_source(
-        lat_min: float = -90.0, lat_max: float = 90.0,
-        lon_min: float = -180.0, lon_max: float = 180.0
-) -> Generator[ParkingLocation, None, None]:
-    def get_random_locations(number: int) -> Generator[ParkingLocation, None, None]:
+class ParkingLocationsSource:
+    def __init__(
+            self,
+            lat_min: float = -90.0, lat_max: float = 90.0,
+            lon_min: float = -180.0, lon_max: float = 180.0,
+    ):
+        self.lat_min = lat_min
+        self.lat_max = lat_max
+        self.lon_min = lon_min
+        self.lon_max = lon_max
+
+    def random(self, number: int) -> Generator[ParkingLocation, None, None]:
         for _ in range(number):
             theft_and_recovery = choice(((True, False), (True, True)) + ((False, None), ) * 5)
             yield ParkingLocation(
-                round(uniform(lat_min, lat_max), 7),
-                round(uniform(lon_min, lon_max), 7),
+                round(uniform(self.lat_min, self.lat_max), 7),
+                round(uniform(self.lon_min, self.lon_max), 7),
                 round(randint(2, 86400) * (theft_and_recovery[0] + uniform(0.5, 1.5))),
                 *theft_and_recovery
             )
 
-    return get_random_locations(200)
+    def from_csv(self, path_to_file: str) -> Generator[ParkingLocation, None, None]:
+        with open(path_to_file, 'r') as file:
+            reader = csv.reader(file)
+            for _ in reader:
+                break
+            for line in reader:
+                latitude, longitude = float(line[0]), float(line[1])
+                skip = False
+                for coord, coord_min, coord_max in (
+                        (latitude, self.lat_min, self.lat_max), (longitude, self.lon_min, self.lon_max)
+                ):
+                    if coord_min > coord_max and not (coord <= coord_min or coord >= coord_max):
+                        skip = True
+                    elif coord_max > coord_min and (coord < coord_min or coord > coord_max):
+                        skip = True
+                if skip:
+                    continue
+                yield ParkingLocation(
+                    latitude=latitude, longitude=longitude, parking_time=int(line[2]),
+                    stolen=(line[3].lower() == "true"), recovered=(None if not line[4] else (line[4].lower() == "true"))
+                )
 
 
 def get_map_corners(center: Location, radius: int) -> tuple[float, float, float, float]:
@@ -41,7 +69,8 @@ def stream_parking_locations_nearby(
         center: Location, radius: int, exclude_center: bool = False
 ) -> Generator[ParkingLocation, None, None]:
     """Radius is in meters"""
-    for location in parking_locations_source(*get_map_corners(center, radius)):
+    source = ParkingLocationsSource(*get_map_corners(center, radius))
+    for location in source.from_csv("./data.csv"):
         if (center - location) <= radius:
             if not exclude_center or (center - location) > EPSILON:
                 yield location

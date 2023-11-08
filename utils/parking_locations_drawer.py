@@ -3,7 +3,7 @@ from mpl_toolkits.basemap import Basemap
 
 from services.parking_locations_service import DotAndItsImportance
 from repository.parking_locations_repository import get_map_corners
-from repository import Location
+from repository import Location, EPSILON
 
 
 def _configure_plt(use_high_resolution: bool = False):
@@ -30,17 +30,18 @@ def draw_dots(
     basemap.drawmapboundary(fill_color='#8ae')
     basemap.drawcountries()
     basemap.drawrivers(color="#457")
-    max_importance = max(i.importance for i in dots_with_importance)
-    min_importance = min(i.importance for i in dots_with_importance)
-    importance_list = [
-        min(1.0, ((i.importance - min_importance) / (max_importance - min_importance)) * 0.85 + 0.2)
-        for i in dots_with_importance
-    ]
     basemap.plot(*basemap(*reversed(central_location.coordinates)), 'bo')
-    for dot, importance in zip((i.dot for i in dots_with_importance), importance_list):
-        basemap.plot(
-            *basemap(*reversed(dot.coordinates)), marker='o', alpha=importance,
-            color=("#f00" if dot.stolen and not dot.recovered else ("#0f0" if not dot.stolen else "#ff0"))
-        )
+    if dots_with_importance:
+        max_importance = max(i.importance for i in dots_with_importance) + EPSILON
+        min_importance = min(i.importance for i in dots_with_importance)
+        importance_list = [
+            min(1.0, ((i.importance - min_importance) / (max_importance - min_importance)) * 0.85 + 0.2)
+            for i in dots_with_importance
+        ]
+        for dot, importance in zip((i.dot for i in dots_with_importance), importance_list):
+            basemap.plot(
+                *basemap(*reversed(dot.coordinates)), marker='o', alpha=importance,
+                color=("#f00" if dot.stolen and not dot.recovered else ("#0f0" if not dot.stolen else "#ff0"))
+            )
     if show:
         plt.show()
