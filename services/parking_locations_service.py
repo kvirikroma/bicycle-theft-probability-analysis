@@ -115,7 +115,7 @@ def _get_error(value: float, biased_value: float):
 
 
 def estimate_theft_probability(
-        location: Location, power_of_distance: float = 1.25,
+        location: Location, power_of_distance: float = 1.4,
         get_probability_function: bool = False, get_all_dots: bool = False
 ) -> tuple[TheftProbabilityPrediction, list[DotAndItsImportance] | None]:
     """
@@ -128,7 +128,7 @@ def estimate_theft_probability(
     :param get_all_dots: Return list of all locations along with the TheftProbabilityPrediction() object.
     :return: a TheftProbabilityPrediction() object and, optionally, all the dots, used for the prediction,
         along with their weights. If there are no dots around the location,
-        (TheftProbabilityPrediction(nan, nan, None, None, None), None) will be returned.
+        (TheftProbabilityPrediction(location, nan, nan, 0, None), None) will be returned.
     If the get_probability_function and the get_all_dots parameters are both false, the function will use O(1) memory.
     """
     if power_of_distance < 1.0 or power_of_distance > 32.0:
