@@ -21,5 +21,8 @@ def predict_theft(location: Location, power_of_distance: float = None):
 
 
 if __name__ == "__main__":
-    # predict_theft(Location(48.435039, 35.020607))
-    predict_theft(Location(48.538401, 35.069718))
+    # predict_theft(Location(48.435039, 35.020607))  # bad places
+    predict_theft(Location(48.530401, 35.069718))  # good places
+    # predict_theft(Location(48.437097, 35.0354721))  # near a green dot
+    # predict_theft(Location(48.3661, 35.06612))  # right next to a green dot
+    # predict_theft(Location(48.50305, 35.05875))  # right next to a red dot
