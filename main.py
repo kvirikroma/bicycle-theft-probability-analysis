@@ -2,7 +2,7 @@ from matplotlib import pyplot as plt
 
 from utils.parking_locations_drawer import draw_dots, draw_prediction_function
 from services.parking_locations_service import estimate_theft_probability
-from repository.parking_locations_repository import Location, ParkingLocation, stream_parking_locations_nearby
+from repository.parking_locations_repository import Location
 
 
 def predict_theft(location: Location, power_of_distance: float = None):
