@@ -143,7 +143,7 @@ def estimate_theft_probability(
             location, max_locations_distance, exclude_center=False
     ):
         dots_count += 1
-        dot_importance = 1 / (max(dot - location, 2) ** power_of_distance)  # everything closer than 2m is the same
+        dot_importance = 1 / (max(dot - location, 3) ** power_of_distance)  # everything closer than 3m is the same
         sum_of_importance += dot_importance
         if dot.stolen and dot.recovered:
             sum_of_stolen_and_recovered += dot_importance
