@@ -61,8 +61,8 @@ def draw_dots(
             importance_list = [log2(i.importance) for i in dots_with_importance]
         else:
             importance_list = [i.importance for i in dots_with_importance]
-        max_importance = max(importance_list) + (EPSILON ** 2)
-        min_importance = min(importance_list)
+        max_importance = max(importance_list)
+        min_importance = min(importance_list) - (EPSILON ** 2)
         importance_list = [
             min(1.0, ((i - min_importance) / (max_importance - min_importance)) * 0.85 + 0.15)
             for i in importance_list

@@ -80,7 +80,7 @@ class TheftProbabilityPrediction(ReprMixin):
                 f", used_dots={self.used_dots}, regression_params={self.regression_params})")
 
 
-class UserRiskTendency:
+class UserRiskTendency(ReprMixin):
     def __init__(
             self, avg_theft_probability_prediction: float | None, avg_theft_probability: float | None,
             avg_recovery_probability_prediction: float | None, avg_recovery_probability: float | None,
@@ -93,8 +93,16 @@ class UserRiskTendency:
         self.avg_parking_time_theft_probability_prediction = avg_parking_time_theft_probability_prediction
         self.avg_parking_time = avg_parking_time
 
+    def __str__(self):
+        return (f"{type(self).__name__}(avg_theft_probability_prediction={self.avg_theft_probability_prediction}, "
+                f"avg_theft_probability={self.avg_theft_probability}, "
+                f"avg_recovery_probability_prediction={self.avg_recovery_probability_prediction}, "
+                f"avg_recovery_probability={self.avg_recovery_probability}, "
+                f"avg_parking_time_theft_probability_prediction={self.avg_parking_time_theft_probability_prediction}, "
+                f"avg_parking_time={self.avg_parking_time})")
 
-class PredictionAccuracy:
+
+class PredictionAccuracy(ReprMixin):
     def __init__(
             self, theft_probability_prediction_accuracy: float | None,
             recovery_probability_prediction_accuracy: float | None,
@@ -103,6 +111,13 @@ class PredictionAccuracy:
         self.theft_probability_prediction_accuracy = theft_probability_prediction_accuracy
         self.recovery_probability_prediction_accuracy = recovery_probability_prediction_accuracy
         self.parking_time_theft_probability_prediction_accuracy = parking_time_theft_probability_prediction_accuracy
+
+    def __str__(self):
+        return (f"{type(self).__name__}"
+                f"(theft_probability_prediction_accuracy={self.theft_probability_prediction_accuracy}, "
+                f"recovery_probability_prediction_accuracy={self.recovery_probability_prediction_accuracy}, "
+                f"parking_time_theft_probability_prediction_accuracy="
+                f"{self.parking_time_theft_probability_prediction_accuracy})")
 
 
 def _get_max_distance(power_of_distance):
@@ -116,7 +131,7 @@ def _get_error(value: float, biased_value: float):
 
 def estimate_theft_probability(
         location: Location, power_of_distance: float = 1.4,
-        get_probability_function: bool = False, get_all_dots: bool = False
+        get_probability_function: bool = False, get_all_dots: bool = False, count_limit: int | None = None
 ) -> tuple[TheftProbabilityPrediction, list[DotAndItsImportance] | None]:
     """
     Calculate the approximate probability of the bicycle theft at the given location,
@@ -126,13 +141,16 @@ def estimate_theft_probability(
         The allowed values for this parameter are between 1.0 and 32.0. Recommended values are between 1.0 and 2.0.
     :param get_probability_function: if set to True, the probability function parameters will be calculated.
     :param get_all_dots: Return list of all locations along with the TheftProbabilityPrediction() object.
+    :param count_limit: if passed, the function will read not more than count_limit values from the database
     :return: a TheftProbabilityPrediction() object and, optionally, all the dots, used for the prediction,
         along with their weights. If there are no dots around the location,
         (TheftProbabilityPrediction(location, nan, nan, 0, None), None) will be returned.
-    If the get_probability_function and the get_all_dots parameters are both false, the function will use O(1) memory.
+    If the get_probability_function and the get_all_dots parameters are both False, the function will use O(1) memory.
     """
     if power_of_distance < 1.0 or power_of_distance > 32.0:
         raise ValueError("The allowed values for power_of_distance are between 1.0 and 32.0")
+    if count_limit is not None and (count_limit < 0):
+        raise ValueError("The count_limit parameter has to be greater or equal to zero")
     sum_of_importance = 0.0
     sum_of_stolen_forever = 0.0  # also about importance
     sum_of_stolen_and_recovered = 0.0  # also about importance
@@ -140,7 +158,7 @@ def estimate_theft_probability(
     all_dots_with_importance = []
     max_locations_distance = _get_max_distance(power_of_distance)
     for dot in parking_locations_repository.stream_parking_locations_nearby(
-            location, max_locations_distance, exclude_center=False
+            location, max_locations_distance, exclude_center=False, count_limit=count_limit
     ):
         dots_count += 1
         dot_importance = 1 / (max(dot - location, 3) ** power_of_distance)  # everything closer than 3m is the same
@@ -155,14 +173,15 @@ def estimate_theft_probability(
     if dots_count == 0:
         return TheftProbabilityPrediction(location, nan, nan, 0, None), None
     probability_of_theft = (sum_of_stolen_forever + sum_of_stolen_and_recovered) / sum_of_importance
-    probability_of_recovery = sum_of_stolen_and_recovered / (sum_of_stolen_forever + sum_of_stolen_and_recovered)
+    probability_of_recovery = sum_of_stolen_and_recovered / (sum_of_stolen_forever + sum_of_stolen_and_recovered) \
+        if (sum_of_stolen_forever + sum_of_stolen_and_recovered) > 0.0 else nan
     regression_params = None
     if get_probability_function:
         weights = [i.importance for i in all_dots_with_importance]
         y_values = [int(i.dot.stolen) for i in all_dots_with_importance]
         x_values = [int(i.dot.parking_time) for i in all_dots_with_importance]
         probability_func_parameters = WLS(y_values, add_constant(x_values), weights=weights).fit().params
-        if probability_func_parameters[1] >= 0.0:
+        if len(probability_func_parameters) > 1 and probability_func_parameters[1] >= 0.0:
             regression_params = LinearRegressionParams(probability_func_parameters[1], probability_func_parameters[0])
     return TheftProbabilityPrediction(
         location, probability_of_theft, probability_of_recovery, dots_count, regression_params

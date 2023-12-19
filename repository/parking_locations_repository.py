@@ -7,6 +7,9 @@ from geopy import distance
 from . import ParkingLocation, Location, EPSILON
 
 
+DATA_SOURCE_FILE = "./data_with_8users.csv"
+
+
 class ParkingLocationsSource:
     def __init__(
             self,
@@ -28,12 +31,24 @@ class ParkingLocationsSource:
                 *theft_and_recovery
             )
 
-    def from_csv(self, path_to_file: str) -> Generator[ParkingLocation, None, None]:
+    def from_csv(
+            self, path_to_file: str, user_id: int | None = None,
+            add_user_id: bool = False, count_limit: int | None = None
+    ) -> Generator[ParkingLocation, None, None]:
+        """
+        "count_limit" parameter is used only for testing purposes and should be removed or replaced in the production
+        """
+        count = 0
         with open(path_to_file, 'r') as file:
             reader = csv.reader(file)
             for _ in reader:
                 break
             for line in reader:
+                if count_limit is not None and count >= count_limit:
+                    break
+                count += 1
+                if (user_id is not None) and (len(line) > 5) and (int(line[5]) != user_id):
+                    continue
                 latitude, longitude = float(line[0]), float(line[1])
                 skip = False
                 for coord, coord_min, coord_max in (
@@ -45,10 +60,11 @@ class ParkingLocationsSource:
                         skip = True
                 if skip:
                     continue
-                yield ParkingLocation(
+                item = ParkingLocation(
                     latitude=latitude, longitude=longitude, parking_time=int(line[2]),
                     stolen=(line[3].lower() == "true"), recovered=(None if not line[4] else (line[4].lower() == "true"))
                 )
+                yield (item, int(line[5])) if add_user_id and len(line) > 5 else item
 
 
 def get_map_corners(center: Location, radius: int) -> tuple[float, float, float, float]:
@@ -66,11 +82,15 @@ def get_map_corners(center: Location, radius: int) -> tuple[float, float, float,
 
 
 def stream_parking_locations_nearby(
-        center: Location, radius: int, exclude_center: bool = False
+        center: Location, radius: int, exclude_center: bool = False,
+        user_id: int | None = None, count_limit: int | None = None
 ) -> Generator[ParkingLocation, None, None]:
-    """Radius is in meters"""
+    """
+    Radius is in meters.
+    "count_limit" parameter is used only for testing purposes and should be removed or replaced in the production
+    """
     source = ParkingLocationsSource(*get_map_corners(center, radius))
-    for location in source.from_csv("./data.csv"):
+    for location in source.from_csv(DATA_SOURCE_FILE, user_id, count_limit=count_limit):
         if (center - location) <= radius:
             if not exclude_center or (center - location) > EPSILON:
                 yield location
