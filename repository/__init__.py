@@ -21,9 +21,6 @@ class Location(ReprMixin):
         """Distance in meters"""
         return distance(self.coordinates, other.coordinates).m
 
-    def __str__(self):
-        return f"{type(self).__name__}({','.join(str(i) for i in self.coordinates)})"
-
 
 class ParkingLocation(Location):
     def __init__(
@@ -37,8 +34,3 @@ class ParkingLocation(Location):
         self.stolen = stolen
         self.recovered = recovered
         self.parking_time = parking_time
-
-    def __str__(self):
-        return (f"{type(self).__name__}({', '.join(str(i) for i in self.coordinates)}"
-                f", parking_time={self.parking_time}, stolen={self.stolen}"
-                f"{f', recovered={self.recovered}' if self.recovered is not None else ''})")

@@ -27,11 +27,8 @@ class DotAndItsImportance(ReprMixin):
     def __le__(self, other: 'DotAndItsImportance'):
         return self.importance <= other.importance
 
-    def __str__(self):
-        return f"{type(self).__name__}(dot={self.dot}, importance={self.importance})"
 
-
-class LinearRegressionParams:
+class LinearRegressionParams(ReprMixin):
     """The function is meant to me a*x + b"""
     def __init__(self, a: int | float, b: int | float):
         self.a = a
@@ -39,12 +36,6 @@ class LinearRegressionParams:
 
     def function(self, x):
         return self.a * x + self.b
-
-    def __str__(self):
-        return f"{type(self).__name__}(a={self.a}, b={self.b})"
-
-    def __repr__(self):
-        return str(self)
 
 
 class TheftProbabilityPrediction(ReprMixin):
@@ -75,32 +66,6 @@ class TheftProbabilityPrediction(ReprMixin):
             return 1.0
         return raw_prediction
 
-    def __str__(self):
-        return (f"{type(self).__name__}(location={self.location}, theft_probability={self.theft_probability}"
-                f", used_dots={self.used_dots}, regression_params={self.regression_params})")
-
-
-class UserRiskTendency(ReprMixin):
-    def __init__(
-            self, avg_theft_probability_prediction: float | None, avg_theft_probability: float | None,
-            avg_recovery_probability_prediction: float | None, avg_recovery_probability: float | None,
-            avg_parking_time_theft_probability_prediction: float | None, avg_parking_time: float | None
-    ):
-        self.avg_theft_probability_prediction = avg_theft_probability_prediction
-        self.avg_theft_probability = avg_theft_probability
-        self.avg_recovery_probability_prediction = avg_recovery_probability_prediction
-        self.avg_recovery_probability = avg_recovery_probability
-        self.avg_parking_time_theft_probability_prediction = avg_parking_time_theft_probability_prediction
-        self.avg_parking_time = avg_parking_time
-
-    def __str__(self):
-        return (f"{type(self).__name__}(avg_theft_probability_prediction={self.avg_theft_probability_prediction}, "
-                f"avg_theft_probability={self.avg_theft_probability}, "
-                f"avg_recovery_probability_prediction={self.avg_recovery_probability_prediction}, "
-                f"avg_recovery_probability={self.avg_recovery_probability}, "
-                f"avg_parking_time_theft_probability_prediction={self.avg_parking_time_theft_probability_prediction}, "
-                f"avg_parking_time={self.avg_parking_time})")
-
 
 class PredictionAccuracy(ReprMixin):
     def __init__(
@@ -111,13 +76,6 @@ class PredictionAccuracy(ReprMixin):
         self.theft_probability_prediction_accuracy = theft_probability_prediction_accuracy
         self.recovery_probability_prediction_accuracy = recovery_probability_prediction_accuracy
         self.parking_time_theft_probability_prediction_accuracy = parking_time_theft_probability_prediction_accuracy
-
-    def __str__(self):
-        return (f"{type(self).__name__}"
-                f"(theft_probability_prediction_accuracy={self.theft_probability_prediction_accuracy}, "
-                f"recovery_probability_prediction_accuracy={self.recovery_probability_prediction_accuracy}, "
-                f"parking_time_theft_probability_prediction_accuracy="
-                f"{self.parking_time_theft_probability_prediction_accuracy})")
 
 
 def _get_max_distance(power_of_distance):
@@ -186,47 +144,6 @@ def estimate_theft_probability(
     return TheftProbabilityPrediction(
         location, probability_of_theft, probability_of_recovery, dots_count, regression_params
     ), (all_dots_with_importance if get_all_dots else None)
-
-
-def get_user_risk_tendency(
-        locations_with_predictions: list[tuple[ParkingLocation, TheftProbabilityPrediction]]
-) -> UserRiskTendency:
-    theft_probability_data = [
-        prediction.theft_probability for location, prediction in locations_with_predictions
-        if not isnan(prediction.theft_probability)
-    ]
-    recovery_probability_data = [
-        prediction.recovery_probability for location, prediction in locations_with_predictions
-        if not isnan(prediction.recovery_probability)
-    ]
-    recovery_data = [
-        location.recovered for location, prediction in locations_with_predictions if location.recovered is not None
-    ]
-    parking_time_theft_data = [
-        prediction.probability_function(location.parking_time)
-        for location, prediction in locations_with_predictions
-        if prediction.regression_params is not None
-    ]
-    return UserRiskTendency(
-        avg_theft_probability_prediction=(
-                sum(theft_probability_data) / len(theft_probability_data)
-        ) if theft_probability_data else None,
-        avg_theft_probability=(
-                sum(i[0].stolen for i in locations_with_predictions) / len(locations_with_predictions)
-        ) if locations_with_predictions else None,
-        avg_recovery_probability_prediction=(
-                sum(recovery_probability_data) / len(recovery_probability_data)
-        ) if recovery_probability_data else None,
-        avg_recovery_probability=(
-                sum(recovery_data) / len(recovery_data)
-        ) if recovery_data else None,
-        avg_parking_time_theft_probability_prediction=(
-                sum(parking_time_theft_data) / len(parking_time_theft_data)
-        ) if parking_time_theft_data else None,
-        avg_parking_time=(
-                sum(i[0].parking_time for i in locations_with_predictions) / len(locations_with_predictions)
-        ) if locations_with_predictions else None
-    )
 
 
 def get_prediction_accuracy(

@@ -9,7 +9,7 @@ SQLAlchemy==1.4.48
 Werkzeug==2.3.3
 six==1.16.0
 jsonschema==4.17.3
-gevent==22.10.2
+gevent==23.9.1
 pyOpenSSL==23.1.1
 jinja2==3.0.3  # written here with version to prevent it from upgrading
 geopy==2.4.0
@@ -17,3 +17,4 @@ matplotlib==3.8.1
 basemap==1.3.8
 basemap-data-hires==1.3.2
 statsmodels==0.14.0
+tensorflow==2.15.0

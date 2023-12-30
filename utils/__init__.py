@@ -2,6 +2,10 @@ from random import shuffle
 
 
 class ReprMixin:
+    def __str__(self):
+        arguments = ', '.join(f'{arg_name}={getattr(self, arg_name)}' for arg_name in self.__dict__)
+        return f"{type(self).__name__}({arguments})"
+
     def __repr__(self):
         return str(self)
 

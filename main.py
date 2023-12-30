@@ -4,9 +4,10 @@ import json
 
 from utils.parking_locations_drawer import draw_dots, draw_prediction_function
 from repository.parking_locations_repository import Location, ParkingLocationsSource, ParkingLocation, DATA_SOURCE_FILE
-from services.parking_locations_service import (estimate_theft_probability, get_user_risk_tendency,
-                                                get_prediction_accuracy, UserRiskTendency, TheftProbabilityPrediction)
-
+from services.insurance_premium_estimation_service import get_user_risk_tendency
+from repository.insurance_premium_estimation_repository import UserRiskTendency
+from services.parking_locations_service import (estimate_theft_probability, get_prediction_accuracy,
+                                                TheftProbabilityPrediction)
 
 # POWER_OF_DISTANCE = 1.432
 POWER_OF_DISTANCE = 1.5
