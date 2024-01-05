@@ -1,6 +1,9 @@
+import time
+
 from matplotlib import pyplot as plt
 from sys import maxsize
 import json
+from concurrent.futures import ProcessPoolExecutor
 
 from utils.parking_locations_drawer import draw_dots, draw_prediction_function
 from repository.parking_locations_repository import Location, ParkingLocationsSource, ParkingLocation, DATA_SOURCE_FILE
@@ -28,16 +31,26 @@ def predict_theft(location: Location, power_of_distance: float = None):
     plt.show()
 
 
+def _add_info(u_id, loc, num):
+    return u_id, loc, estimate_theft_probability(
+        loc, get_probability_function=True, count_limit=num, power_of_distance=POWER_OF_DISTANCE
+    )[0]
+
+
 def calculate_risk_tendency_and_accuracy() -> dict[int: UserRiskTendency]:
     users: dict[int: list[tuple[ParkingLocation, TheftProbabilityPrediction]]] = {}
     locations_generator = ParkingLocationsSource().from_csv(DATA_SOURCE_FILE, add_user_id=True)
+    executor = ProcessPoolExecutor()
+    futures = []
     for number, location_with_user in zip(range(maxsize), locations_generator):
         location, user_id = location_with_user
         if not users.get(user_id):
             users[user_id] = []
-        users[user_id].append((location, estimate_theft_probability(
-            location, get_probability_function=True, count_limit=number, power_of_distance=POWER_OF_DISTANCE
-        )[0]))
+        futures.append(executor.submit(_add_info, user_id, location, number))
+    for i in futures:
+        uid, location, estimation = i.result()
+        users[uid].append((location, estimation))
+    executor.shutdown()
     return {user_id: (
         get_user_risk_tendency(users[user_id]), get_prediction_accuracy(users[user_id])
     ) for user_id in users}
