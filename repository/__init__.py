@@ -1,11 +1,6 @@
-from typing import Final
-
 from geopy.distance import distance
 
-from utils import ReprMixin
-
-
-EPSILON: Final = 0.000001
+from utils import ReprMixin, EPSILON
 
 
 class Location(ReprMixin):

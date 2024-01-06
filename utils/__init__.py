@@ -1,4 +1,9 @@
+from typing import Final
+
 from random import shuffle
+
+
+EPSILON: Final = 0.000001
 
 
 class ReprMixin:
