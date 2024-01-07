@@ -17,7 +17,7 @@ matplotlib==3.7.4
 basemap==1.3.8
 basemap-data-hires==1.3.2
 statsmodels==0.14.0
-tensorflow==2.15.0
+tensorflow==2.15.0.post1
 numpy==1.25.2
 notebook==7.0.6
 pydot==2.0.0

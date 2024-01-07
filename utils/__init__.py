@@ -1,6 +1,9 @@
 from typing import Final
-
 from random import shuffle
+import os
+
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+import tensorflow as tf
 
 
 EPSILON: Final = 0.000001
@@ -25,3 +28,7 @@ def distribute_randomly_between_users(data: list, num_of_users: int) -> list:
             user_number = 0
     shuffle(users)
     return zip(data, users)
+
+
+def err(y_pred, y_true):
+    return tf.math.abs(y_pred - y_true)

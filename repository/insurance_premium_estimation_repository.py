@@ -4,6 +4,7 @@ from random import uniform, choice
 from math import log10, fabs, inf
 
 from numpy.random import normal
+import numpy as np
 
 from utils import ReprMixin, EPSILON
 
@@ -81,6 +82,52 @@ class InsuranceInputData(ReprMixin):
         self.user_risk_tendency, self.wk_device_revision_number = user_risk_tendency, wk_device_revision_number
         self.bike_is_electric, self.damage_insurance_included = bike_is_electric, damage_insurance_included
         self.lock_price = 0.0 if lock_type == LockType.none else lock_price
+
+    def as_list_of_values(self):
+        return [
+            self.bike_price,
+            self.lock_type.value,
+            self.bike_type.value,
+            self.frame_material.value,
+            self.parking_time_during_last_month,
+            self.user_risk_tendency.avg_theft_probability_prediction,
+            self.user_risk_tendency.avg_theft_probability,
+            self.user_risk_tendency.avg_recovery_probability_prediction,
+            self.user_risk_tendency.avg_recovery_probability,
+            self.user_risk_tendency.avg_parking_time_theft_probability_prediction,
+            self.user_risk_tendency.avg_parking_time,
+            self.lock_price,
+            self.wk_device_revision_number,
+            self.bike_is_electric,
+            self.damage_insurance_included
+        ]
+
+
+def prepare_insurance_data(x, y=None):
+    x_prepared = []
+
+    def normalize(val, minimum, maximum):
+        return (val - minimum) / (maximum - minimum)
+
+    for item in x:
+        x_prepared.append([
+            normalize(item[0], MIN_PRICE, MAX_PRICE),
+            *[i.value == item[1] for i in LockType],
+            *[i.value == item[2] for i in BikeType],
+            *[i.value == item[3] for i in FrameMaterial],
+            normalize(item[4], 0.0, MAX_SECONDS_IN_MONTH),
+            *item[5:10],
+            normalize(item[10], 0, MAX_SECONDS_IN_MONTH) if item[10] < MAX_SECONDS_IN_MONTH else 1.0,
+            normalize(item[11], MIN_LOCK_PRICE, MAX_LOCK_PRICE),
+            *[i == item[12] for i in WK_DEVICE_VERSIONS],
+            *item[13:]
+        ])
+
+    x_prepared = np.array(x_prepared)
+    y_prepared = None
+    if y:
+        y_prepared = np.array([0.0 if i is None else i for i in y])
+    return (x_prepared, y_prepared) if y else x_prepared
 
 
 def _bounds(value, minimum=0.0, maximum=1.0):

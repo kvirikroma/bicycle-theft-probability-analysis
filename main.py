@@ -1,19 +1,36 @@
-import time
-
 from matplotlib import pyplot as plt
 from sys import maxsize
 import json
 from concurrent.futures import ProcessPoolExecutor
+from typing import Final
+
+from utils import tf
 
 from utils.parking_locations_drawer import draw_dots, draw_prediction_function
+from utils import err
 from repository.parking_locations_repository import Location, ParkingLocationsSource, ParkingLocation, DATA_SOURCE_FILE
 from services.insurance_premium_estimation_service import get_user_risk_tendency
-from repository.insurance_premium_estimation_repository import UserRiskTendency
+from repository.insurance_premium_estimation_repository import (UserRiskTendency, InsuranceInputData,
+                                                                LockType, BikeType, FrameMaterial,
+                                                                prepare_insurance_data)
 from services.parking_locations_service import (estimate_theft_probability, get_prediction_accuracy,
-                                                TheftProbabilityPrediction)
+                                                TheftProbabilityPrediction, PredictionAccuracy)
 
-# POWER_OF_DISTANCE = 1.432
-POWER_OF_DISTANCE = 1.5
+
+# POWER_OF_DISTANCE: Final = 1.432
+POWER_OF_DISTANCE: Final = 1.5
+INSURANCE_DATA_PLACEHOLDER: Final = InsuranceInputData(
+    bike_price=600,
+    bike_type=BikeType.mtb,
+    lock_type=LockType.chain,
+    lock_price=30,
+    frame_material=FrameMaterial.aluminum,
+    user_risk_tendency=UserRiskTendency(0, 0, 0, 0, 0, 0),
+    damage_insurance_included=False,
+    bike_is_electric=False,
+    parking_time_during_last_month=144000,
+    wk_device_revision_number=3
+)
 
 
 def predict_theft(location: Location, power_of_distance: float = None):
@@ -37,7 +54,7 @@ def _add_info(u_id, loc, num):
     )[0]
 
 
-def calculate_risk_tendency_and_accuracy() -> dict[int: UserRiskTendency]:
+def calculate_risk_tendency_and_accuracy() -> dict[int: tuple[UserRiskTendency, PredictionAccuracy]]:
     users: dict[int: list[tuple[ParkingLocation, TheftProbabilityPrediction]]] = {}
     locations_generator = ParkingLocationsSource().from_csv(DATA_SOURCE_FILE, add_user_id=True)
     executor = ProcessPoolExecutor()
@@ -65,9 +82,29 @@ def theft_prediction_example():
     # predict_theft(Location(48.50305, 35.05875))  # right next to a red dot
 
 
+def calculate_premium_and_accuracy():
+    model = tf.keras.models.load_model('result-0.4537.keras', custom_objects={'err': err})
+    result = calculate_risk_tendency_and_accuracy()
+    insurance_data = []
+    for i in sorted(result):
+        risks: UserRiskTendency = result[i][0]
+        insurance_data_item = INSURANCE_DATA_PLACEHOLDER.as_list_of_values()
+        insurance_data_item[5:11] = (
+            risks.avg_theft_probability_prediction, risks.avg_theft_probability,
+            risks.avg_recovery_probability_prediction, risks.avg_recovery_probability,
+            risks.avg_parking_time_theft_probability_prediction, risks.avg_parking_time,
+        )
+        insurance_data.append(insurance_data_item)
+    insurance_data = prepare_insurance_data(insurance_data)
+    predictions = [round(float(i[0]), 2) for i in model.predict(insurance_data)]
+    print("Risk tendency:")
+    print(json.dumps({i: str(result[i][0]) for i in sorted(result)}, indent=4))
+    print("Premium estimations:")
+    print(json.dumps({i: predictions[i] for i in sorted(result)}, indent=4))
+    print("Prediction accuracy:")
+    print(json.dumps({i: str(result[i][0]) for i in sorted(result)}, indent=4))
+
+
 if __name__ == "__main__":
     # theft_prediction_example()
-    result = calculate_risk_tendency_and_accuracy()
-    print(json.dumps({i: str(result[i][0]) for i in sorted(result)}, indent=2))
-    print()
-    print(json.dumps({i: str(result[i][1]) for i in sorted(result)}, indent=2))
+    calculate_premium_and_accuracy()
