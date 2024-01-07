@@ -7,12 +7,15 @@ from numpy.random import normal
 
 from utils import ReprMixin, EPSILON
 
+
 MIN_PRICE: Final = 100.0
 STD_PRICE: Final = 2000.0
 MAX_PRICE: Final = 10000.0
 AVG_PARKING_TIME: Final = 30000
 WK_DEVICE_VERSIONS: Final = (2, 3)
 MAX_SECONDS_IN_MONTH: Final = 31 * 24 * 3600
+MIN_LOCK_PRICE: Final = 3.0
+MAX_LOCK_PRICE: Final = 1000.0
 
 
 class LockType(Enum):  # values are important
@@ -96,9 +99,9 @@ def generate_random_insurance_data() -> InsuranceInputData:
     else:
         bike_type = choice([BikeType(i) for i in (0, 1, 2, 4, 7, 9)])
     lock_type = choice(list(LockType))
-    lock_price = round(max(
-        3.0 + fabs(normal()), fabs(normal(loc=lock_type.value * 10, scale=10))
-    ), 2) if lock_type != LockType.none else 0
+    lock_price = _bounds(round(max(
+        MIN_LOCK_PRICE + fabs(normal()), fabs(normal(loc=lock_type.value * 10, scale=10))
+    ), 2), MIN_LOCK_PRICE, MAX_LOCK_PRICE) if lock_type != LockType.none else 0
     if bike_type == BikeType.tt:
         frame = FrameMaterial.carbon
     else:
@@ -121,7 +124,9 @@ def generate_random_insurance_data() -> InsuranceInputData:
         lock_type=lock_type,
         bike_type=bike_type,
         frame_material=frame,
-        parking_time_during_last_month=round(risk_tendency.avg_parking_time * uniform(28, 31)),
+        parking_time_during_last_month=round(_bounds(
+            risk_tendency.avg_parking_time * uniform(28, 31), 0, MAX_SECONDS_IN_MONTH
+        )),
         user_risk_tendency=risk_tendency,
         lock_price=lock_price,
         wk_device_revision_number=wk_version,
@@ -156,7 +161,7 @@ def _simple_insurance_premium_prediction(data: InsuranceInputData) -> float | No
     insurance_cost *= coefficient
     if data.frame_material == FrameMaterial.carbon or data.frame_material == FrameMaterial.titanium:
         insurance_cost **= 1.02
-    insurance_cost /= 1 + (data.lock_type.value / 8 + data.lock_price / 100)  # todo sanity-check
+    insurance_cost /= 1 + (data.lock_type.value / 8 + data.lock_price / 100)
     theft_prediction_coefficient = (
         (data.user_risk_tendency.avg_theft_probability_prediction * 0.02) +
         (data.user_risk_tendency.avg_parking_time_theft_probability_prediction * 0.15) +
