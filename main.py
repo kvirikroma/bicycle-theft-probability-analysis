@@ -4,15 +4,11 @@ import json
 from concurrent.futures import ProcessPoolExecutor
 from typing import Final
 
-from utils import tf
-
 from utils.parking_locations_drawer import draw_dots, draw_prediction_function
-from utils import err
 from repository.parking_locations_repository import Location, ParkingLocationsSource, ParkingLocation, DATA_SOURCE_FILE
-from services.insurance_premium_estimation_service import get_user_risk_tendency
-from repository.insurance_premium_estimation_repository import (UserRiskTendency, InsuranceInputData,
-                                                                LockType, BikeType, FrameMaterial,
-                                                                prepare_insurance_data)
+from services.insurance_premium_estimation_service import get_user_risk_tendency, insurance_premium_prediction
+from repository.insurance_premium_estimation_repository import (UserRiskTendency, InsuranceInputData, BikeType,
+                                                                LockType, FrameMaterial)
 from services.parking_locations_service import (estimate_theft_probability, get_prediction_accuracy,
                                                 TheftProbabilityPrediction, PredictionAccuracy)
 
@@ -83,10 +79,10 @@ def theft_prediction_example():
 
 
 def calculate_premium_and_accuracy():
-    model = tf.keras.models.load_model('result-0.4537.keras', custom_objects={'err': err})
     result = calculate_risk_tendency_and_accuracy()
+    users = [*sorted(result)]
     insurance_data = []
-    for i in sorted(result):
+    for i in users:
         risks: UserRiskTendency = result[i][0]
         insurance_data_item = INSURANCE_DATA_PLACEHOLDER.as_list_of_values()
         insurance_data_item[5:11] = (
@@ -95,14 +91,13 @@ def calculate_premium_and_accuracy():
             risks.avg_parking_time_theft_probability_prediction, risks.avg_parking_time,
         )
         insurance_data.append(insurance_data_item)
-    insurance_data = prepare_insurance_data(insurance_data)
-    predictions = [max(0.0, round(float(i[0]), 2)) for i in model.predict(insurance_data)]
+    predictions = insurance_premium_prediction(insurance_data)
     print("Risk tendency:")
-    print(json.dumps({i: str(result[i][0]) for i in sorted(result)}, indent=4))
+    print(json.dumps({i: str(result[i][0]) for i in users}, indent=4))
     print("Premium estimations:")
-    print(json.dumps({i: predictions[i] for i in sorted(result)}, indent=4))
+    print(json.dumps({i: predictions[i] for i in users}, indent=4))
     print("Prediction accuracy:")
-    print(json.dumps({i: str(result[i][0]) for i in sorted(result)}, indent=4))
+    print(json.dumps({i: str(result[i][0]) for i in users}, indent=4))
 
 
 if __name__ == "__main__":
