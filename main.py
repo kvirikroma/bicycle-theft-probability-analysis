@@ -96,7 +96,7 @@ def calculate_premium_and_accuracy():
         )
         insurance_data.append(insurance_data_item)
     insurance_data = prepare_insurance_data(insurance_data)
-    predictions = [round(float(i[0]), 2) for i in model.predict(insurance_data)]
+    predictions = [max(0.0, round(float(i[0]), 2)) for i in model.predict(insurance_data)]
     print("Risk tendency:")
     print(json.dumps({i: str(result[i][0]) for i in sorted(result)}, indent=4))
     print("Premium estimations:")
