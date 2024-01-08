@@ -97,7 +97,7 @@ def calculate_premium_and_accuracy():
     print("Premium estimations:")
     print(json.dumps({i: predictions[i] for i in users}, indent=4))
     print("Prediction accuracy:")
-    print(json.dumps({i: str(result[i][0]) for i in users}, indent=4))
+    print(json.dumps({i: str(result[i][1]) for i in users}, indent=4))
 
 
 if __name__ == "__main__":
