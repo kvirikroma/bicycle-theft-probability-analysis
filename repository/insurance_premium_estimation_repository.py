@@ -60,6 +60,13 @@ class UserRiskTendency(ReprMixin):
         self.avg_parking_time_theft_probability_prediction = avg_parking_time_theft_probability_prediction
         self.avg_parking_time = avg_parking_time
 
+    def __copy__(self):
+        return UserRiskTendency(
+            self.avg_theft_probability_prediction, self.avg_theft_probability,
+            self.avg_recovery_probability_prediction, self.avg_recovery_probability,
+            self.avg_parking_time_theft_probability_prediction, self.avg_parking_time
+        )
+
 
 class InsuranceInputData(ReprMixin):
     def __init__(
@@ -80,6 +87,18 @@ class InsuranceInputData(ReprMixin):
         self.user_risk_tendency, self.wk_device_revision_number = user_risk_tendency, wk_device_revision_number
         self.bike_is_electric, self.damage_insurance_included = bike_is_electric, damage_insurance_included
         self.lock_price = 0.0 if lock_type == LockType.none else lock_price
+
+    def __copy__(self):
+        return InsuranceInputData(
+            self.bike_price, self.lock_type, self.bike_type, self.frame_material,
+            self.parking_time_during_last_month, self.user_risk_tendency, self.lock_price,
+            self.wk_device_revision_number, self.bike_is_electric, self.damage_insurance_included
+        )
+
+    def __deepcopy__(self):
+        copy = self.__copy__()
+        copy.user_risk_tendency = self.user_risk_tendency.__copy__()
+        return copy
 
     def as_list_of_values(self):
         return [

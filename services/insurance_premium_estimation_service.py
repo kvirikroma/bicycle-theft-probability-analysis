@@ -127,5 +127,5 @@ def _simple_insurance_premium_prediction(data: InsuranceInputData) -> float | No
 
 
 def insurance_premium_prediction(data: Iterable[InsuranceInputData]) -> list[float | None]:
-    insurance_data = prepare_insurance_data(data)
+    insurance_data = prepare_insurance_data(i.as_list_of_values() for i in data)
     return [max(0.0, round(float(i[0]), 2)) for i in MODEL.predict(insurance_data)]

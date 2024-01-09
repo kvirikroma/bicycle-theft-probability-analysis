@@ -81,16 +81,9 @@ def theft_prediction_example():
 def calculate_premium_and_accuracy():
     result = calculate_risk_tendency_and_accuracy()
     users = [*sorted(result)]
-    insurance_data = []
-    for i in users:
-        risks: UserRiskTendency = result[i][0]
-        insurance_data_item = INSURANCE_DATA_PLACEHOLDER.as_list_of_values()
-        insurance_data_item[5:11] = (
-            risks.avg_theft_probability_prediction, risks.avg_theft_probability,
-            risks.avg_recovery_probability_prediction, risks.avg_recovery_probability,
-            risks.avg_parking_time_theft_probability_prediction, risks.avg_parking_time,
-        )
-        insurance_data.append(insurance_data_item)
+    insurance_data: list[InsuranceInputData] = [INSURANCE_DATA_PLACEHOLDER.__copy__() for _ in users]
+    for user_id, insurance_data_item in zip(users, insurance_data):
+        insurance_data_item.user_risk_tendency = result[user_id][0].__copy__()
     predictions = insurance_premium_prediction(insurance_data)
     print("Risk tendency:")
     print(json.dumps({i: str(result[i][0]) for i in users}, indent=4))
