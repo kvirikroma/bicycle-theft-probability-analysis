@@ -1,23 +1,33 @@
-Flask==2.2.5
-Flask-API==3.0.post1
-gunicorn==20.1.0
-flask-restx==1.1.0
-Flask-SQLAlchemy==3.0.3
-psycopg2-binary==2.9.6
-tzlocal==2.1  # written here with version to prevent it from upgrading
-SQLAlchemy==1.4.48
-Werkzeug==2.3.3
-six==1.16.0
-jsonschema==4.17.3
-gevent==23.9.1
-pyOpenSSL==23.1.1
+#Flask==2.2.5
+#Flask-API==3.0.post1
+#gunicorn==20.1.0
+#flask-restx==1.1.0
+#Flask-SQLAlchemy==3.0.3
+#psycopg2-binary==2.9.6
+#tzlocal==2.1  # written here with version to prevent it from upgrading
+#SQLAlchemy==1.4.48
+#Werkzeug==2.3.3
+#six==1.16.0
+#jsonschema==4.17.3
+#gevent==23.9.1
+#pyOpenSSL==23.1.1
+# upper dependencies would be used if it was a server app
+
 jinja2==3.0.3  # written here with version to prevent it from upgrading
 geopy==2.4.0
 matplotlib==3.7.4
 basemap==1.3.8
 basemap-data-hires==1.3.2
 statsmodels==0.14.0
-tensorflow==2.15.0.post1
+tensorflow==2.14.1
+#tensorflow==2.15.0.post1  # this may be needed if we're using the '50k' model
 numpy==1.25.2
 notebook==7.0.6
 pydot==2.0.0
+
+# ...and let's help pip resolve some dependencies as APPARENTLY THIS SHIT DOESN'T SEEM TO BE ABLE TO DO THAT BY ITSELF
+json5==0.9.14
+jupyter_client==8.6.0
+jupyter_core==5.7.0
+jupyter_server==2.12.2
+nbformat==5.9.2
