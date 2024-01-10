@@ -71,11 +71,17 @@ class PredictionAccuracy(ReprMixin):
     def __init__(
             self, theft_probability_prediction_accuracy: float | None,
             recovery_probability_prediction_accuracy: float | None,
-            parking_time_theft_probability_prediction_accuracy: float | None
+            parking_time_theft_probability_prediction_accuracy: float | None,
+            theft_probability_prediction_std: float | None,
+            recovery_probability_prediction_std: float | None,
+            parking_time_theft_probability_prediction_std: float | None
     ):
         self.theft_probability_prediction_accuracy = theft_probability_prediction_accuracy
         self.recovery_probability_prediction_accuracy = recovery_probability_prediction_accuracy
         self.parking_time_theft_probability_prediction_accuracy = parking_time_theft_probability_prediction_accuracy
+        self.theft_probability_prediction_std = theft_probability_prediction_std
+        self.recovery_probability_prediction_std = recovery_probability_prediction_std
+        self.parking_time_theft_probability_prediction_std = parking_time_theft_probability_prediction_std
 
 
 def _get_max_distance(power_of_distance):
@@ -164,23 +170,34 @@ def get_prediction_accuracy(
         for location, prediction in locations_with_predictions
         if prediction.regression_params is not None
     ]
-    avg_theft_accuracy = None
-    avg_recovery_accuracy = None
-    avg_parking_time_theft_accuracy = None
+    avg_theft_accuracy = avg_recovery_accuracy = avg_parking_time_theft_accuracy = None
+    avg_theft_std = avg_recovery_std = avg_parking_time_theft_std = None
     if theft_data:
         avg_theft_accuracy = 1.0 - sum(
             abs(stolen - probability) for stolen, probability in theft_data
         ) / len(theft_data)
+        avg_theft_std = (sum(
+            (stolen - probability) ** 2 for stolen, probability in theft_data
+        ) / len(theft_data)) ** 0.5
     if recovery_data:
         avg_recovery_accuracy = 1.0 - sum(
             abs(recovered - probability) for recovered, probability in recovery_data
         ) / len(recovery_data)
+        avg_recovery_std = (sum(
+            (recovered - probability) ** 2 for recovered, probability in recovery_data
+        ) / len(recovery_data)) ** 0.5
     if parking_time_theft_data:
         avg_parking_time_theft_accuracy = 1.0 - sum(
             abs(stolen - probability) for stolen, probability in parking_time_theft_data
         ) / len(parking_time_theft_data)
+        avg_parking_time_theft_std = (sum(
+            (stolen - probability) ** 2 for stolen, probability in parking_time_theft_data
+        ) / len(parking_time_theft_data)) ** 0.5
     return PredictionAccuracy(
         theft_probability_prediction_accuracy=avg_theft_accuracy,
         recovery_probability_prediction_accuracy=avg_recovery_accuracy,
-        parking_time_theft_probability_prediction_accuracy=avg_parking_time_theft_accuracy
+        parking_time_theft_probability_prediction_accuracy=avg_parking_time_theft_accuracy,
+        theft_probability_prediction_std=avg_theft_std,
+        recovery_probability_prediction_std=avg_recovery_std,
+        parking_time_theft_probability_prediction_std=avg_parking_time_theft_std
     )
