@@ -28,7 +28,3 @@ def distribute_randomly_between_users(data: list, num_of_users: int) -> list:
             user_number = 0
     shuffle(users)
     return zip(data, users)
-
-
-def err(y_pred, y_true):
-    return tf.math.abs(y_pred - y_true)

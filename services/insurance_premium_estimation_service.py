@@ -3,7 +3,7 @@ from typing import Iterable, Final
 
 import numpy as np
 
-from utils import tf, err, EPSILON
+from utils import tf, EPSILON
 from repository import ParkingLocation
 from repository.insurance_premium_estimation_repository import (UserRiskTendency, MIN_PRICE, MAX_PRICE, LockType,
                                                                 BikeType, FrameMaterial, MAX_SECONDS_IN_MONTH,
@@ -12,7 +12,7 @@ from repository.insurance_premium_estimation_repository import (UserRiskTendency
 from services.parking_locations_service import TheftProbabilityPrediction
 
 
-MODEL: Final = tf.keras.models.load_model('result-0.4537.keras', custom_objects={'err': err})
+MODEL: Final = tf.keras.models.load_model('result-0.5339_on50k.keras')
 
 
 def get_user_risk_tendency(
